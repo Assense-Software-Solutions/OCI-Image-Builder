@@ -161,7 +161,7 @@ public class OCIImageBuilder {
         Builds a three-layer OCI image for a Java app: distroless base (from crane), custom JRE, application code.
 
         Usage:
-          java OCIImageBuilder --jre <custom-jre-dir> --app <app-layer-dir> --module <module-name> [--out <output-dir>]
+          java com.assense.OCIImageBuilder.OCIImageBuilder --jre <custom-jre-dir> --app <app-layer-dir> --module <module-name> [--out <output-dir>]
         """);
     }
 
