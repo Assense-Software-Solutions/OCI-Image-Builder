@@ -79,7 +79,8 @@ public class OCIImageBuilderTest {
         assert diffIdsCount == 3 : "Expected 3 diff_ids, found " + diffIdsCount;
 
         // --- 6. Entrypoint correctness ---
-        assert config.contains("/opt/java/openjdk/bin/java") : "Entrypoint java missing";
+        // Entrypoint should match the path configured in OCIImageBuilder
+        assert config.contains("/opt/jre/bin/java") : "Entrypoint java missing";
         assert config.contains("/opt/app") : "Entrypoint app path missing";
 
         // --- 7. Cleanup ---
