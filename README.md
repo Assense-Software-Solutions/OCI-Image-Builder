@@ -22,7 +22,7 @@ java OCIImageBuilderTest
 ```
 
 ## Load the resulting Image
-While the result complies with OCI, it does not comply with e.g. podman and docker expactations. Therefore one has to archive the result.
+While the result complies with OCI, it does not comply with e.g. podman and docker expectations. Therefore one has to archive the result.
 
 ```bash
 tar -cf oci-image.tar -C oci-image .
