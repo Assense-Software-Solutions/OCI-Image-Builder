@@ -65,9 +65,9 @@ public class OCIImageBuilder {
         String baseLayerDiffId = "sha256:" + baseLayerDigest;
         Files.write(BLOBS.resolve(baseLayerDigest), baseLayerTarBytes);
 
-        // Step 3: JRE layer as /opt/java/openjdk
+        // Step 3: JRE layer as /opt/jre
         String jreTar = outDir + "/jre.tar";
-        createTarWithDir(jreDir, "/opt/java/openjdk", jreTar);
+        createTarWithDir(jreDir, "/opt/jre", jreTar);
         byte[] jreTarBytes = Files.readAllBytes(Paths.get(jreTar));
         String jreLayerDigest = sha256Hex(jreTarBytes);
         String jreLayerDiffId = "sha256:" + jreLayerDigest;
@@ -93,7 +93,7 @@ public class OCIImageBuilder {
           ] },
           "config": {
             "Env": [],
-            "Entrypoint": ["/opt/java/openjdk/bin/java", "-p", "/opt/app", "-m", "%s/%s.HelloWorld"]
+            "Entrypoint": ["/opt/jre/bin/java", "-p", "/opt/app", "-m", "%s/%s.HelloWorld"]
           }
         }
         """.formatted(baseLayerDiffId, jreLayerDiffId, appLayerDiffId, moduleName, moduleName);
@@ -200,7 +200,7 @@ public class OCIImageBuilder {
     static void createTarWithDir(String srcDir, String targetDir, String outTar) throws Exception {
         List<String> cmd = List.of("tar", "cf", outTar, "-C", srcDir, ".");
         ProcessBuilder pb = new ProcessBuilder(cmd);
-        // Transform the root dir in tar: /foo -> /opt/java/openjdk or /opt/app
+        // Transform the root dir in tar: /foo -> /opt/jre or /opt/app
         Map<String,String> env = pb.environment();
         env.put("TAR_OPTIONS", "--transform=s,^," + targetDir.replaceFirst("^/", "") + "/,");
         pb.redirectErrorStream(true);

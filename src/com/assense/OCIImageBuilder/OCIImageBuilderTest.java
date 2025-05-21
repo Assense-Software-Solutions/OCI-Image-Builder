@@ -45,13 +45,13 @@ public class OCIImageBuilderTest {
         // --- 4. Check manifest and config correctness ---
         // Parse index.json
         String index = Files.readString(outPath.resolve("index.json"));
-        String manifestDigest = index.split("\"digest\"\s*:\s*\"sha256:")[1].split("\"")[0];
+        String manifestDigest = index.split("\"digest\" *: *\"sha256:")[1].split("\"")[0];
         Path manifestPath = outPath.resolve("blobs/sha256").resolve(manifestDigest);
         assert Files.exists(manifestPath) : "manifest blob missing";
         String manifest = Files.readString(manifestPath);
 
         // Manifest must list 3 layers (distroless, jre, app)
-        int layersCount = manifest.split("\"mediaType\"\s*:\s*\"application/vnd.oci.image.layer.v1.tar").length - 1;
+        int layersCount = manifest.split("\"mediaType\" *: *\"application/vnd.oci.image.layer.v1.tar").length - 1;
         assert layersCount == 3 : "Expected 3 layers, found " + layersCount;
 
         // --- 5. Config correctness ---
