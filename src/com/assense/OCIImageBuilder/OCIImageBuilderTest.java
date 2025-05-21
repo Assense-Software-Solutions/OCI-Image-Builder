@@ -3,6 +3,7 @@ package com.assense.OCIImageBuilder;
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
+import java.util.stream.*;
 
 public class OCIImageBuilderTest {
     public static void main(String[] args) throws Exception {
@@ -40,7 +41,9 @@ public class OCIImageBuilderTest {
         assert Files.exists(outPath.resolve("oci-layout")) : "oci-layout missing";
         assert Files.exists(outPath.resolve("index.json")) : "index.json missing";
         assert Files.exists(outPath.resolve("blobs/sha256")) : "blobs/sha256 missing";
-        assert Files.list(outPath.resolve("blobs/sha256")).findAny().isPresent() : "No blobs found";
+        try (Stream<Path> blobs = Files.list(outPath.resolve("blobs/sha256"))) {
+            assert blobs.findAny().isPresent() : "No blobs found";
+        }
 
         // --- 4. Check manifest and config correctness ---
         // Parse index.json
