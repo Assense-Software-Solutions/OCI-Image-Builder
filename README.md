@@ -11,14 +11,12 @@ You will need "tar" and "[crane](https://github.com/google/go-containerregistry/
 ### Run
 ```fish
 javac src/***.java -d out
-cd out/
-java OCIImageBuilder --jre ./custom-jre --app ./app-layer --module com.example.helloworld
+java -cp out com.assense.OCIImageBuilder.OCIImageBuilder --jre ./custom-jre --app ./app-layer --module com.example.helloworld
 ```
 ### Test
 ```fish
 javac src/***.java -d out
-cd out/com/assense/ociimagebuilder
-java OCIImageBuilderTest
+java -cp out com.assense.OCIImageBuilder.OCIImageBuilderTest
 ```
 
 ## Load the resulting Image
