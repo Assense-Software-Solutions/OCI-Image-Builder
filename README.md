@@ -9,12 +9,14 @@ You will need "tar" and "[crane](https://github.com/google/go-containerregistry/
 
 ## Usage
 ### Run
-```bash
-javac com.assense.OCIImageBuilder.OCIImageBuilder.java
-java com.assense.OCIImageBuilder.OCIImageBuilder --jre ./custom-jre --app ./app-layer --module com.example.helloworld
+```fish
+javac src/***.java -d out
+cd out/
+java OCIImageBuilder --jre ./custom-jre --app ./app-layer --module com.example.helloworld
 ```
 ### Test
-```bash
-javac com.assense.OCIImageBuilder.OCIImageBuilderTest.java
-java com.assense.OCIImageBuilder.OCIImageBuilderTest
+```fish
+javac src/***.java -d out
+cd out/com/assense/ociimagebuilder
+java OCIImageBuilderTest
 ```

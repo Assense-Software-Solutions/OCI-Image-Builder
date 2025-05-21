@@ -19,14 +19,20 @@ public class OCIImageBuilderTest {
         Files.createDirectories(Paths.get(appDir, moduleName.replace('.', '/')));
         Files.writeString(Paths.get(appDir, moduleName.replace('.', '/') + "/HelloWorld.class"), "dummyclass", StandardOpenOption.CREATE_NEW);
 
-        // --- 2. Run com.assense.OCIImageBuilder.OCIImageBuilder ---
+        // --- 2. Run OCIImageBuilder ---
         cleanDir(outDir);
-        List<String> cmd = Arrays.asList("java", "com.assense.OCIImageBuilder.OCIImageBuilder", "--jre", jreDir, "--app", appDir, "--module", moduleName, "--out", outDir);
-        System.out.println("Running com.assense.OCIImageBuilder.OCIImageBuilder...");
+        List<String> cmd = Arrays.asList(
+                "java", "com.assense.OCIImageBuilder.OCIImageBuilder",
+                "--jre", jreDir,
+                "--app", appDir,
+                "--module", moduleName,
+                "--out", outDir
+        );
+        System.out.println("Running OCIImageBuilder...");
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.inheritIO();
         Process p = pb.start();
-        assert p.waitFor() == 0 : "com.assense.OCIImageBuilder.OCIImageBuilder failed to run.";
+        assert p.waitFor() == 0 : "OCIImageBuilder failed to run.";
 
         // --- 3. Check output files/structure ---
         Path outPath = Paths.get(outDir);
@@ -39,23 +45,35 @@ public class OCIImageBuilderTest {
         // --- 4. Check manifest and config correctness ---
         // Parse index.json
         String index = Files.readString(outPath.resolve("index.json"));
-        String manifestDigest = index.split("\"digest\"\\s*:\\s*\"sha256:")[1].split("\"")[0];
+        String manifestDigest = index.split("\"digest\"\s*:\s*\"sha256:")[1].split("\"")[0];
         Path manifestPath = outPath.resolve("blobs/sha256").resolve(manifestDigest);
         assert Files.exists(manifestPath) : "manifest blob missing";
         String manifest = Files.readString(manifestPath);
 
         // Manifest must list 3 layers (distroless, jre, app)
-        int layersCount = manifest.split("\"mediaType\"\\s*:\\s*\"application/vnd.oci.image.layer.v1.tar").length - 1;
+        int layersCount = manifest.split("\"mediaType\"\s*:\s*\"application/vnd.oci.image.layer.v1.tar").length - 1;
         assert layersCount == 3 : "Expected 3 layers, found " + layersCount;
 
         // --- 5. Config correctness ---
         String configDigest = manifest.split("\"config\"\\s*:\\s*\\{[^}]*\"digest\"\\s*:\\s*\"sha256:")[1].split("\"")[0];
+
         Path configPath = outPath.resolve("blobs/sha256").resolve(configDigest);
         assert Files.exists(configPath) : "config blob missing";
         String config = Files.readString(configPath);
         assert config.contains(moduleName) : "Module name missing in config";
         assert config.contains("\"diff_ids\"") : "diff_ids missing in config";
-        assert config.split("sha256:").length - 1 == 4 : "diff_ids + digests should contain 4 hashes (3 diff_ids + 1 digest)";
+        // Parse diff_ids more robustly
+        int diffIdsCount = 0;
+        int idx = config.indexOf("\"diff_ids\"");
+        if (idx != -1) {
+            int start = config.indexOf('[', idx);
+            int end = config.indexOf(']', start);
+            if (start != -1 && end != -1) {
+                String diffIdsArray = config.substring(start + 1, end);
+                diffIdsCount = diffIdsArray.split("sha256:").length - 1;
+            }
+        }
+        assert diffIdsCount == 3 : "Expected 3 diff_ids, found " + diffIdsCount;
 
         // --- 6. Entrypoint correctness ---
         assert config.contains("/opt/java/openjdk/bin/java") : "Entrypoint java missing";
@@ -70,11 +88,10 @@ public class OCIImageBuilderTest {
 
     static void cleanDir(String dir) throws IOException {
         Path d = Paths.get(dir);
-        if (Files.exists(d)) Files.walk(d).sorted(Comparator.reverseOrder()).forEach(path -> {
-            try {
-                Files.delete(path);
-            } catch (IOException ignored) {
-            }
-        });
+        if (Files.exists(d)) Files.walk(d)
+                .sorted(Comparator.reverseOrder())
+                .forEach(path -> {
+                    try { Files.delete(path); } catch (IOException ignored) {}
+                });
     }
 }
