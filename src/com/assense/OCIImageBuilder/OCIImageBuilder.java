@@ -49,12 +49,12 @@ public class OCIImageBuilder {
         Files.writeString(OUT.resolve("oci-layout"),
                 "{ \"imageLayoutVersion\": \"1.0.0\" }\n", StandardCharsets.UTF_8);
 
-        // Step 2: Download distroless base layer using crane (assume one layer)
+        // Step 2: Download distroless base layer without crane (assume one layer)
         String baseLayerTar = outDir + "/base-layer.tar";
         Path baseLayerPath = Paths.get(baseLayerTar);
         if (!Files.exists(baseLayerPath)) {
-            System.out.println("Downloading base layer from " + DISTROLESS_IMAGE + " using crane...");
-            runCmd("crane", "export", DISTROLESS_IMAGE, baseLayerTar);
+            System.out.println("Downloading base layer from " + DISTROLESS_IMAGE + " via registry API...");
+            downloadDistrolessBaseLayer(baseLayerTar);
         } else {
             System.out.println("Base layer tar already present, skipping download.");
         }
@@ -179,6 +179,71 @@ public class OCIImageBuilder {
         if (p.waitFor() != 0) throw new RuntimeException("Command failed: " + String.join(" ", args));
     }
 
+    // Runs a command and returns its stdout as String
+    static String runCmdCapture(String... args) throws Exception {
+        ProcessBuilder pb = new ProcessBuilder(args);
+        pb.redirectErrorStream(true);
+        Process p = pb.start();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (InputStream in = p.getInputStream()) {
+            in.transferTo(baos);
+        }
+        if (p.waitFor() != 0) {
+            throw new RuntimeException("Command failed: " + String.join(" ", args));
+        }
+        return baos.toString(StandardCharsets.UTF_8);
+    }
+
+    static void downloadDistrolessBaseLayer(String outTar) throws Exception {
+        Path tmpDir = Files.createTempDirectory("distroless-base");
+
+        // First get the image index
+        String imageIndex = runCmdCapture(
+                "curl", "-L",
+                "-H", "Accept: application/vnd.oci.image.index.v1+json",
+                "https://gcr.io/v2/distroless/base/manifests/latest");
+
+        // Extract the manifest digest for linux/amd64 from the image index
+        java.util.regex.Pattern manifestPattern = java.util.regex.Pattern.compile(
+                "\"digest\"\\s*:\\s*\"(sha256:[a-f0-9]+)\".*?\"platform\"\\s*:\\s*\\{.*?\"architecture\"\\s*:\\s*\"amd64\".*?\"os\"\\s*:\\s*\"linux\"",
+                java.util.regex.Pattern.DOTALL);
+        java.util.regex.Matcher manifestMatcher = manifestPattern.matcher(imageIndex);
+        if (!manifestMatcher.find()) {
+            throw new RuntimeException("Could not find linux/amd64 manifest in image index");
+        }
+        String manifestDigest = manifestMatcher.group(1);
+
+        // Get the actual manifest using the digest, accepting the OCI manifest format
+        String manifest = runCmdCapture(
+                "curl", "-L",
+                "-H", "Accept: application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json",
+                "https://gcr.io/v2/distroless/base/manifests/" + manifestDigest);
+
+        List<String> digests = new ArrayList<>();
+        int layersIdx = manifest.indexOf("\"layers\"");
+        if (layersIdx != -1) {
+            String layersPart = manifest.substring(layersIdx);
+            java.util.regex.Matcher m = java.util.regex.Pattern
+                    .compile("\"digest\"\\s*:\\s*\"(sha256:[a-f0-9]+)\"")
+                    .matcher(layersPart);
+            while (m.find()) digests.add(m.group(1));
+        }
+
+        for (String digest : digests) {
+            runCmd("bash", "-c",
+                    "curl --silent -L https://gcr.io/v2/distroless/base/blobs/" + digest +
+                            " | tar -xz -C " + tmpDir.toAbsolutePath());
+        }
+
+        runCmd("tar", "cf", outTar, "-C", tmpDir.toString(), ".");
+
+        Files.walk(tmpDir)
+                .sorted(Comparator.reverseOrder())
+                .forEach(p -> {
+                    try { Files.delete(p); } catch (IOException ignored) {}
+                });
+    }
+
     // Write a blob from String, returns digest (hex, no 'sha256:')
     static String writeBlob(String json, Path BLOBS) throws Exception {
         byte[] data = json.getBytes(StandardCharsets.UTF_8);
@@ -211,4 +276,3 @@ public class OCIImageBuilder {
         if (p.waitFor() != 0) throw new RuntimeException("tar failed for " + srcDir);
     }
 }
-
