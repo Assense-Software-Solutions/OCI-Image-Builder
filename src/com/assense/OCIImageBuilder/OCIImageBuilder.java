@@ -64,22 +64,27 @@ public class OCIImageBuilder {
         String baseLayerDigest = sha256Hex(baseLayerTarBytes);
         String baseLayerDiffId = "sha256:" + baseLayerDigest;
         Files.write(BLOBS.resolve(baseLayerDigest), baseLayerTarBytes);
+        Files.deleteIfExists(baseLayerPath);
 
         // Step 3: JRE layer as /opt/jre
         String jreTar = outDir + "/jre.tar";
         createTarWithDir(jreDir, "/opt/jre", jreTar);
-        byte[] jreTarBytes = Files.readAllBytes(Paths.get(jreTar));
+        Path jreTarPath = Paths.get(jreTar);
+        byte[] jreTarBytes = Files.readAllBytes(jreTarPath);
         String jreLayerDigest = sha256Hex(jreTarBytes);
         String jreLayerDiffId = "sha256:" + jreLayerDigest;
         Files.write(BLOBS.resolve(jreLayerDigest), jreTarBytes);
+        Files.deleteIfExists(jreTarPath);
 
         // Step 4: App layer as /opt/app
         String appTar = outDir + "/app.tar";
         createTarWithDir(appDir, "/opt/app", appTar);
-        byte[] appTarBytes = Files.readAllBytes(Paths.get(appTar));
+        Path appTarPath = Paths.get(appTar);
+        byte[] appTarBytes = Files.readAllBytes(appTarPath);
         String appLayerDigest = sha256Hex(appTarBytes);
         String appLayerDiffId = "sha256:" + appLayerDigest;
         Files.write(BLOBS.resolve(appLayerDigest), appTarBytes);
+        Files.deleteIfExists(appTarPath);
 
         // Step 5: config.json with proper diff_ids
         String configJson = """
@@ -237,6 +242,8 @@ public class OCIImageBuilder {
 
         runCmd("tar", "cf", outTar, "-C", tmpDir.toString(), ".");
 
+        // the app exits after this, no need to close resources
+        //noinspection resource
         Files.walk(tmpDir)
                 .sorted(Comparator.reverseOrder())
                 .forEach(p -> {
