@@ -8,6 +8,11 @@ This example expects a custom JRE built with 'jlink' and a java application to r
 You will need "tar" and "[crane](https://github.com/google/go-containerregistry/blob/main/cmd/crane/README.md)" on the PATH. "Wait, is 'crane' not a special tool?" you might be wondering. It is. We need it to interact with OCI registries, which is not the feature to be proven feasible. Concretely, downloading a layer of the "distroless"-image by Google. This particular base image gets us 'libc', SSL certificates and some things we absolutely need from an OS to run the JVM.
 
 ## Usage
+### Build a custom JRE
+```fish
+javac src/***.java -d out
+java -cp out com.assense.OCIImageBuilder.JREBuilder ./app-mods com.example.helloworld ./custom-jre
+```
 ### Run
 ```fish
 javac src/***.java -d out
